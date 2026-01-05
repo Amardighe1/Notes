@@ -18,9 +18,6 @@ const departments = [
 ];
 
 const navLinks = [
-  { name: "Home", path: "/" },
-  { name: "Projects", path: "/projects" },
-  { name: "Departments", path: "/departments" },
   { name: "Support", path: "/support" },
   { name: "FAQs", path: "/faqs" },
 ];
