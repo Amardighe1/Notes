@@ -37,84 +37,86 @@ export default function Support() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] py-16">
+    <div className="py-12 lg:py-16">
       <div className="container max-w-5xl">
-        <div className="text-center mb-16 animate-fade-up">
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary mb-6">
+        {/* Header */}
+        <div className="text-center mb-10 animate-fade-up">
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-sm font-medium text-primary mb-4">
             <MessageCircle className="h-4 w-4" />
             <span>SUPPORT</span>
           </div>
-          <h1 className="text-4xl font-bold mb-4">How Can We Help?</h1>
-          <p className="text-muted-foreground max-w-xl mx-auto">
-            Our support team is here to assist you with any questions or issues you may have.
+          <h1 className="text-3xl lg:text-4xl font-bold mb-3">How Can We Help?</h1>
+          <p className="text-muted-foreground text-sm max-w-lg mx-auto">
+            Our support team is here to assist you with any questions or issues.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 mb-12">
+        {/* Contact Methods */}
+        <div className="grid sm:grid-cols-3 gap-4 mb-8">
           {contactMethods.map((method, index) => (
             <Card 
               key={index}
               className="text-center border-border/50 hover:border-primary/30 hover:shadow-elevated transition-all duration-300 animate-fade-up"
-              style={{ animationDelay: `${index * 100}ms` }}
+              style={{ animationDelay: `${index * 50}ms` }}
             >
-              <CardContent className="pt-8 pb-6">
-                <div className="w-14 h-14 rounded-xl bg-gradient-primary flex items-center justify-center mx-auto mb-4">
-                  <method.icon className="h-7 w-7 text-primary-foreground" />
+              <CardContent className="pt-6 pb-5 px-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center mx-auto mb-3">
+                  <method.icon className="h-6 w-6 text-primary-foreground" />
                 </div>
-                <h3 className="font-semibold text-lg mb-1">{method.title}</h3>
-                <p className="text-sm text-muted-foreground mb-3">{method.description}</p>
+                <h3 className="font-semibold mb-1">{method.title}</h3>
+                <p className="text-xs text-muted-foreground mb-2">{method.description}</p>
                 <p className="text-sm font-medium text-primary">{method.value}</p>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        <Card className="border-border/50 shadow-elevated animate-fade-up" style={{ animationDelay: "300ms" }}>
-          <CardHeader>
-            <CardTitle>Send us a Message</CardTitle>
-            <CardDescription>
-              Fill out the form below and we'll get back to you as soon as possible.
+        {/* Contact Form */}
+        <Card className="border-border/50 shadow-elevated animate-fade-up" style={{ animationDelay: "150ms" }}>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg">Send us a Message</CardTitle>
+            <CardDescription className="text-sm">
+              Fill out the form and we'll get back to you soon.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input id="name" placeholder="Your name" required />
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="name" className="text-sm">Full Name</Label>
+                  <Input id="name" placeholder="Your name" className="h-10" required />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input id="email" type="email" placeholder="your@email.com" required />
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-sm">Email Address</Label>
+                  <Input id="email" type="email" placeholder="your@email.com" className="h-10" required />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="subject">Subject</Label>
-                <Input id="subject" placeholder="How can we help you?" required />
+              <div className="space-y-1.5">
+                <Label htmlFor="subject" className="text-sm">Subject</Label>
+                <Input id="subject" placeholder="How can we help you?" className="h-10" required />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="message">Message</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="message" className="text-sm">Message</Label>
                 <Textarea 
                   id="message" 
-                  placeholder="Describe your issue or question in detail..." 
-                  rows={5}
+                  placeholder="Describe your issue or question..." 
+                  rows={4}
                   required 
                 />
               </div>
-              <Button type="submit" className="w-full md:w-auto px-8">
-                <Send className="mr-2 h-4 w-4" />
-                Send Message
-              </Button>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>Average response: 2-4 hours</span>
+                </div>
+                <Button type="submit" className="w-full sm:w-auto px-6">
+                  <Send className="mr-2 h-4 w-4" />
+                  Send Message
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>
-
-        <div className="mt-12 text-center animate-fade-up" style={{ animationDelay: "400ms" }}>
-          <div className="inline-flex items-center gap-2 text-muted-foreground">
-            <Clock className="h-4 w-4" />
-            <span className="text-sm">Average response time: 2-4 hours during business hours</span>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -47,36 +47,37 @@ export default function NotesSelection() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-muted/30 to-background py-16">
-      <div className="container max-w-2xl">
-        <div className="text-center mb-10 animate-fade-up">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-primary mb-6">
-            <BookOpen className="h-8 w-8 text-primary-foreground" />
+    <div className="py-12 lg:py-16 bg-gradient-to-b from-muted/30 to-background">
+      <div className="container max-w-xl">
+        {/* Header */}
+        <div className="text-center mb-8 animate-fade-up">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-primary mb-4">
+            <BookOpen className="h-7 w-7 text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-bold mb-3">Find Your Notes</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl lg:text-3xl font-bold mb-2">Find Your Notes</h1>
+          <p className="text-sm text-muted-foreground">
             Select your department, semester, and subject to access study materials.
           </p>
         </div>
 
-        <Card className="border-border/50 shadow-elevated animate-fade-up" style={{ animationDelay: "100ms" }}>
-          <CardHeader>
-            <CardTitle className="text-xl">Filter Notes</CardTitle>
-            <CardDescription>
-              Choose your preferences to find relevant study materials
+        {/* Filter Card */}
+        <Card className="border-border/50 shadow-elevated animate-fade-up" style={{ animationDelay: "50ms" }}>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Filter Notes</CardTitle>
+            <CardDescription className="text-sm">
+              Choose your preferences to find relevant materials
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Department Select */}
-            <div className="space-y-2">
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
               <label className="text-sm font-medium">Department</label>
               <Select value={selectedDept} onValueChange={setSelectedDept}>
-                <SelectTrigger className="h-12">
+                <SelectTrigger className="h-10">
                   <SelectValue placeholder="Select your department" />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border-border">
                   {departments.map((dept) => (
-                    <SelectItem key={dept} value={dept} className="py-3">
+                    <SelectItem key={dept} value={dept} className="py-2.5">
                       {dept}
                     </SelectItem>
                   ))}
@@ -84,16 +85,15 @@ export default function NotesSelection() {
               </Select>
             </div>
 
-            {/* Semester Select */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-sm font-medium">Semester</label>
               <Select value={selectedSem} onValueChange={setSelectedSem}>
-                <SelectTrigger className="h-12">
+                <SelectTrigger className="h-10">
                   <SelectValue placeholder="Select semester" />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border-border">
                   {semesters.map((sem) => (
-                    <SelectItem key={sem} value={sem} className="py-3">
+                    <SelectItem key={sem} value={sem} className="py-2.5">
                       {sem}
                     </SelectItem>
                   ))}
@@ -101,24 +101,23 @@ export default function NotesSelection() {
               </Select>
             </div>
 
-            {/* Subject Select */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-sm font-medium">Subject (Optional)</label>
               <Select 
                 value={selectedSubject} 
                 onValueChange={setSelectedSubject}
                 disabled={availableSubjects.length === 0}
               >
-                <SelectTrigger className="h-12">
+                <SelectTrigger className="h-10">
                   <SelectValue placeholder={
                     availableSubjects.length === 0 
-                      ? "Select department and semester first" 
-                      : "Select subject (or leave blank for all)"
+                      ? "Select dept & semester first" 
+                      : "Select subject (or leave blank)"
                   } />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border-border">
                   {availableSubjects.map((subject) => (
-                    <SelectItem key={subject} value={subject} className="py-3">
+                    <SelectItem key={subject} value={subject} className="py-2.5">
                       {subject}
                     </SelectItem>
                   ))}
@@ -129,7 +128,7 @@ export default function NotesSelection() {
             <Button 
               onClick={handleFindNotes}
               disabled={!selectedDept || !selectedSem}
-              className="w-full h-12 rounded-lg text-base"
+              className="w-full h-10 mt-2"
             >
               <Search className="mr-2 h-4 w-4" />
               Find Notes
@@ -138,15 +137,15 @@ export default function NotesSelection() {
         </Card>
 
         {/* Quick Links */}
-        <div className="mt-10 text-center animate-fade-up" style={{ animationDelay: "200ms" }}>
-          <p className="text-sm text-muted-foreground mb-4">Popular Searches</p>
+        <div className="mt-6 text-center animate-fade-up" style={{ animationDelay: "100ms" }}>
+          <p className="text-xs text-muted-foreground mb-3">Popular Searches</p>
           <div className="flex flex-wrap justify-center gap-2">
             {["AIML - Sem 3", "Computer - Sem 2", "Mechanical - Sem 4"].map((quick) => (
               <Button
                 key={quick}
                 variant="outline"
                 size="sm"
-                className="rounded-full text-xs border-primary/20 hover:bg-primary/5"
+                className="rounded-full text-xs h-7 px-3 border-primary/20 hover:bg-primary/5"
                 onClick={() => {
                   const [dept, sem] = quick.split(" - ");
                   setSelectedDept(dept);

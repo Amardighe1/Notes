@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, Link } from "react-router-dom";
 import { Navbar } from "./Navbar";
 
 export function Layout() {
@@ -9,21 +9,18 @@ export function Layout() {
         <Outlet />
       </main>
       <footer className="border-t border-border bg-muted/30">
-        <div className="container py-8">
+        <div className="container py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-sm text-muted-foreground">
-              © 2024 DiploMate. All rights reserved.
+              © 2025 DiploMate. All rights reserved.
             </p>
             <div className="flex items-center gap-6">
-              <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Privacy Policy
-              </a>
-              <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Terms of Service
-              </a>
-              <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <Link to="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                Terms & Conditions
+              </Link>
+              <Link to="/support" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                 Contact
-              </a>
+              </Link>
             </div>
           </div>
         </div>
