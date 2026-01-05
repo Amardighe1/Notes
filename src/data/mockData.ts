@@ -5,7 +5,17 @@ export interface Note {
   department: string;
   semester: string;
   subject: string;
+  folderId: string;
   fileUrl: string;
+}
+
+export interface Folder {
+  id: string;
+  name: string;
+  department: string;
+  semester: string;
+  subject: string;
+  description: string;
 }
 
 export const departments = ["AIML", "Computer", "Mechanical", "Civil"] as const;
@@ -46,6 +56,58 @@ export const subjectsByDeptSem: Record<string, Record<string, string[]>> = {
   },
 };
 
+// Folders represent units/chapters for organizing notes
+export const foldersData: Folder[] = [
+  {
+    id: "f1",
+    name: "Unit 1 - ML Introduction",
+    department: "AIML",
+    semester: "Sem 3",
+    subject: "Machine Learning Basics",
+    description: "Introduction to ML concepts and fundamentals",
+  },
+  {
+    id: "f2",
+    name: "Unit 2 - Supervised Learning",
+    department: "AIML",
+    semester: "Sem 3",
+    subject: "Machine Learning Basics",
+    description: "Classification and Regression algorithms",
+  },
+  {
+    id: "f3",
+    name: "Unit 1 - Python Basics",
+    department: "AIML",
+    semester: "Sem 3",
+    subject: "Python Programming",
+    description: "Python fundamentals and syntax",
+  },
+  {
+    id: "f4",
+    name: "Unit 1 - DSA Fundamentals",
+    department: "Computer",
+    semester: "Sem 2",
+    subject: "Data Structures",
+    description: "Arrays, Linked Lists, Stacks, Queues",
+  },
+  {
+    id: "f5",
+    name: "Unit 1 - Thermo Laws",
+    department: "Mechanical",
+    semester: "Sem 3",
+    subject: "Thermodynamics",
+    description: "First and Second Laws of Thermodynamics",
+  },
+  {
+    id: "f6",
+    name: "Unit 1 - Force Analysis",
+    department: "Civil",
+    semester: "Sem 3",
+    subject: "Structural Mechanics",
+    description: "Analysis of forces in structures",
+  },
+];
+
 export const notesData: Note[] = [
   {
     id: "1",
@@ -54,33 +116,37 @@ export const notesData: Note[] = [
     department: "AIML",
     semester: "Sem 3",
     subject: "Machine Learning Basics",
+    folderId: "f1",
     fileUrl: "#",
   },
   {
     id: "2",
+    title: "Types of Machine Learning",
+    description: "Supervised, Unsupervised, and Reinforcement Learning explained.",
+    department: "AIML",
+    semester: "Sem 3",
+    subject: "Machine Learning Basics",
+    folderId: "f1",
+    fileUrl: "#",
+  },
+  {
+    id: "3",
+    title: "Linear Regression",
+    description: "Complete guide to linear regression with examples.",
+    department: "AIML",
+    semester: "Sem 3",
+    subject: "Machine Learning Basics",
+    folderId: "f2",
+    fileUrl: "#",
+  },
+  {
+    id: "4",
     title: "Python Programming Complete Guide",
     description: "From basics to advanced Python concepts with hands-on examples.",
     department: "AIML",
     semester: "Sem 3",
     subject: "Python Programming",
-    fileUrl: "#",
-  },
-  {
-    id: "3",
-    title: "Statistics for Data Science",
-    description: "Statistical methods and their applications in data analysis.",
-    department: "AIML",
-    semester: "Sem 3",
-    subject: "Statistics",
-    fileUrl: "#",
-  },
-  {
-    id: "4",
-    title: "Database Management Systems",
-    description: "Complete DBMS concepts with SQL and NoSQL databases.",
-    department: "AIML",
-    semester: "Sem 3",
-    subject: "Database Management",
+    folderId: "f3",
     fileUrl: "#",
   },
   {
@@ -90,33 +156,27 @@ export const notesData: Note[] = [
     department: "Computer",
     semester: "Sem 2",
     subject: "Data Structures",
+    folderId: "f4",
     fileUrl: "#",
   },
   {
     id: "6",
-    title: "Java OOP Concepts",
-    description: "Object-oriented programming principles with Java examples.",
-    department: "Computer",
-    semester: "Sem 2",
-    subject: "OOP with Java",
-    fileUrl: "#",
-  },
-  {
-    id: "7",
     title: "Thermodynamics Fundamentals",
     description: "Laws of thermodynamics and their engineering applications.",
     department: "Mechanical",
     semester: "Sem 3",
     subject: "Thermodynamics",
+    folderId: "f5",
     fileUrl: "#",
   },
   {
-    id: "8",
+    id: "7",
     title: "Structural Mechanics",
     description: "Analysis of forces and moments in structural elements.",
     department: "Civil",
     semester: "Sem 3",
     subject: "Structural Mechanics",
+    folderId: "f6",
     fileUrl: "#",
   },
 ];
