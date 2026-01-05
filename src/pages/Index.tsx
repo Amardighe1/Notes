@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Lightbulb, Users, Award, ArrowRight } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { BookOpen, Lightbulb, Users, Award, ArrowRight, Brain, Monitor, Cog, Building2, FileText } from "lucide-react";
 
 const features = [
   {
@@ -25,11 +26,43 @@ const features = [
   },
 ];
 
-const stats = [
-  { value: "10,000+", label: "Students" },
-  { value: "500+", label: "Notes" },
-  { value: "4", label: "Departments" },
-  { value: "100+", label: "Projects" },
+const departments = [
+  {
+    id: "AIML",
+    name: "AI & Machine Learning",
+    shortName: "AIML",
+    icon: Brain,
+    description: "Explore artificial intelligence, machine learning, deep learning, and data science concepts.",
+    stats: { notes: 45, students: 320, projects: 15 },
+    color: "from-violet-500 to-purple-600",
+  },
+  {
+    id: "Computer",
+    name: "Computer Engineering",
+    shortName: "Computer",
+    icon: Monitor,
+    description: "Software development, web technologies, databases, and system programming.",
+    stats: { notes: 60, students: 450, projects: 22 },
+    color: "from-blue-500 to-cyan-500",
+  },
+  {
+    id: "Mechanical",
+    name: "Mechanical Engineering",
+    shortName: "Mechanical",
+    icon: Cog,
+    description: "Thermodynamics, manufacturing, automobile engineering, and CAD/CAM technologies.",
+    stats: { notes: 38, students: 280, projects: 12 },
+    color: "from-orange-500 to-red-500",
+  },
+  {
+    id: "Civil",
+    name: "Civil Engineering",
+    shortName: "Civil",
+    icon: Building2,
+    description: "Structural analysis, construction management, surveying, and environmental engineering.",
+    stats: { notes: 35, students: 250, projects: 10 },
+    color: "from-green-500 to-emerald-600",
+  },
 ];
 
 export default function Index() {
@@ -67,7 +100,7 @@ export default function Index() {
                 </Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="rounded-full px-8 h-12 text-base border-primary/20 hover:bg-primary/5">
-                <Link to="/projects">
+                <Link to="/notes-selection">
                   Explore Projects
                 </Link>
               </Button>
@@ -76,17 +109,62 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="border-y border-border bg-muted/30 py-12">
+      {/* Departments Section */}
+      <section className="py-20 lg:py-28 bg-muted/30">
         <div className="container">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="text-3xl lg:text-4xl font-bold text-gradient mb-1">
-                  {stat.value}
-                </div>
-                <div className="text-sm text-muted-foreground">{stat.label}</div>
-              </div>
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary mb-6">
+              <Building2 className="h-4 w-4" />
+              <span>DEPARTMENTS</span>
+            </div>
+            <h2 className="text-3xl font-bold mb-4">Choose Your Department</h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Select your department to access specialized study materials, projects, and resources.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            {departments.map((dept, index) => (
+              <Card 
+                key={dept.id}
+                className="group border-border/50 hover:border-primary/30 hover:shadow-elevated transition-all duration-300 animate-fade-up overflow-hidden"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <div className={`h-2 bg-gradient-to-r ${dept.color}`} />
+                <CardHeader>
+                  <div className="flex items-start gap-4">
+                    <div className={`w-16 h-16 rounded-xl bg-gradient-to-br ${dept.color} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform`}>
+                      <dept.icon className="h-8 w-8 text-white" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl mb-1">{dept.name}</CardTitle>
+                      <CardDescription>{dept.description}</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-6 mb-6 text-sm">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <span><strong>{dept.stats.notes}</strong> Notes</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span><strong>{dept.stats.students}</strong> Students</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="h-4 w-4 text-muted-foreground" />
+                      <span><strong>{dept.stats.projects}</strong> Projects</span>
+                    </div>
+                  </div>
+                  <Button asChild className="w-full group-hover:translate-x-1 transition-transform">
+                    <Link to={`/notes-selection?department=${dept.shortName}`}>
+                      Browse {dept.shortName} Notes
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
