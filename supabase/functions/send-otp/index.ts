@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
+import nodemailer from "npm:nodemailer@6";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,21 +51,22 @@ serve(async (req) => {
       throw new Error(`Failed to store OTP: ${insertError.message}`);
     }
 
-    // Send email via Gmail SMTP
-    const client = new SmtpClient();
-
-    await client.connectTLS({
-      hostname: "smtp.gmail.com",
+    // Send email via Gmail SMTP using nodemailer
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
       port: 465,
-      username: GMAIL_USER,
-      password: GMAIL_APP_PASSWORD,
+      secure: true,
+      auth: {
+        user: GMAIL_USER,
+        pass: GMAIL_APP_PASSWORD,
+      },
     });
 
-    await client.send({
-      from: GMAIL_USER,
+    await transporter.sendMail({
+      from: `"DiploMate" <${GMAIL_USER}>`,
       to: cleanEmail,
       subject: "DiploMate - Email Verification Code",
-      content: `Your verification code is: ${otp}\n\nThis code expires in 5 minutes.\n\nIf you did not request this code, please ignore this email.`,
+      text: `Your verification code is: ${otp}\n\nThis code expires in 5 minutes.\n\nIf you did not request this code, please ignore this email.`,
       html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0;">
           <div style="text-align: center; margin-bottom: 24px;">
@@ -83,8 +84,6 @@ serve(async (req) => {
         </div>
       `,
     });
-
-    await client.close();
 
     return new Response(
       JSON.stringify({ success: true, message: "OTP sent successfully" }),

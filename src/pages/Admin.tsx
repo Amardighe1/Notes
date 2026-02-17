@@ -246,9 +246,15 @@ export default function Admin() {
     }
   }, [activeSection]);
 
-  // Lazy-load purchases when payments section is active
+  // Lazy-load purchases when payments section is active + auto-cleanup old resolved purchases
   useEffect(() => {
     if (activeSection === "payments") {
+      // Silently cleanup resolved purchases older than 7 days
+      supabase.rpc("cleanup_resolved_purchases").then(({ data, error }) => {
+        if (!error && data && (data as any).purchases_deleted > 0) {
+          console.log(`Auto-cleanup: removed ${(data as any).purchases_deleted} resolved purchases`);
+        }
+      });
       fetchPurchases();
     }
   }, [activeSection, purchaseFilter]);

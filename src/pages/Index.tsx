@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Lightbulb, Users, Award, ArrowRight, Brain, Monitor, Cog, Building2, FileText, Sparkles, CheckCircle2 } from "lucide-react";
+import { BookOpen, Lightbulb, Users, Award, ArrowRight, Brain, Monitor, Cog, Building2, Sparkles, CheckCircle2 } from "lucide-react";
 
 const features = [
   {
@@ -33,7 +33,6 @@ const departments = [
     shortName: "AIML",
     icon: Brain,
     description: "Explore artificial intelligence, machine learning, deep learning, and data science concepts.",
-    stats: { notes: 45, students: 320, projects: 15 },
     color: "bg-violet-50 border-violet-100",
     iconBg: "bg-violet-100",
     iconColor: "text-violet-600",
@@ -45,7 +44,6 @@ const departments = [
     shortName: "Computer",
     icon: Monitor,
     description: "Software development, web technologies, databases, and system programming.",
-    stats: { notes: 60, students: 450, projects: 22 },
     color: "bg-blue-50 border-blue-100",
     iconBg: "bg-blue-100",
     iconColor: "text-blue-600",
@@ -57,7 +55,6 @@ const departments = [
     shortName: "Mechanical",
     icon: Cog,
     description: "Thermodynamics, manufacturing, automobile engineering, and CAD/CAM technologies.",
-    stats: { notes: 38, students: 280, projects: 12 },
     color: "bg-orange-50 border-orange-100",
     iconBg: "bg-orange-100",
     iconColor: "text-orange-600",
@@ -69,7 +66,6 @@ const departments = [
     shortName: "Civil",
     icon: Building2,
     description: "Structural analysis, construction management, surveying, and environmental engineering.",
-    stats: { notes: 35, students: 250, projects: 10 },
     color: "bg-emerald-50 border-emerald-100",
     iconBg: "bg-emerald-100",
     iconColor: "text-emerald-600",
@@ -78,7 +74,7 @@ const departments = [
 ];
 
 const benefits = [
-  "Free access to all notes",
+  "Organized by department",
   "Updated for latest syllabus",
   "Expert-curated content",
   "Download anytime",
@@ -160,16 +156,6 @@ export default function Index() {
                 </CardHeader>
                 <CardContent className="px-5 pb-5">
                   <CardDescription className="text-sm mb-4 line-clamp-2 text-muted-foreground">{dept.description}</CardDescription>
-                  <div className="flex items-center gap-4 mb-4 text-sm">
-                    <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <FileText className="h-3.5 w-3.5" />
-                      <span className={`font-semibold ${dept.accent}`}>{dept.stats.notes}</span> notes
-                    </span>
-                    <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <Users className="h-3.5 w-3.5" />
-                      <span className="font-semibold text-foreground">{dept.stats.students}</span>
-                    </span>
-                  </div>
                   <Button asChild size="sm" variant="outline" className="w-full h-9 text-sm border-border hover:bg-muted/50 group-hover:border-primary/30 group-hover:text-primary transition-colors">
                     <Link to={`/notes-selection?department=${dept.shortName}`}>
                       Browse Notes
@@ -222,7 +208,7 @@ export default function Index() {
               Ready to Ace Your Diploma?
             </h2>
             <p className="text-muted-foreground text-lg max-w-md mx-auto mb-8">
-              Join thousands of students already using DiploMate to excel in their studies.
+              Start using DiploMate to excel in your diploma studies.
             </p>
             <Button asChild size="lg" className="rounded-full px-8 h-12 text-base shadow-lg shadow-primary/20">
               <Link to="/notes-selection">
