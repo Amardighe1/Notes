@@ -390,18 +390,109 @@ export type Database = {
         }
         Relationships: []
       }
+      projects: {
+        Row: {
+          author: string | null
+          created_at: string | null
+          created_by: string | null
+          demo_url: string | null
+          department: string
+          description: string | null
+          file_url: string | null
+          github_url: string | null
+          id: string
+          is_active: boolean | null
+          is_featured: boolean | null
+          project_type: string
+          semester: string
+          storage_path: string | null
+          tech_stack: string[] | null
+          title: string
+          updated_at: string | null
+          view_count: number | null
+        }
+        Insert: {
+          author?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          demo_url?: string | null
+          department: string
+          description?: string | null
+          file_url?: string | null
+          github_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          project_type: string
+          semester: string
+          storage_path?: string | null
+          tech_stack?: string[] | null
+          title: string
+          updated_at?: string | null
+          view_count?: number | null
+        }
+        Update: {
+          author?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          demo_url?: string | null
+          department?: string
+          description?: string | null
+          file_url?: string | null
+          github_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          project_type?: string
+          semester?: string
+          storage_path?: string | null
+          tech_stack?: string[] | null
+          title?: string
+          updated_at?: string | null
+          view_count?: number | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       increment_download_count: {
         Args: { note_uuid: string }
         Returns: undefined
       }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -528,6 +619,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
