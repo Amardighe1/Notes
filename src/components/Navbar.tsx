@@ -17,6 +17,11 @@ const departments = [
   { name: "Civil", label: "Civil Engineering" },
 ];
 
+const projectTypes = [
+  { name: "microproject", label: "Microprojects", path: "/projects?type=microproject" },
+  { name: "capstone", label: "Capstone Projects", path: "/projects?type=capstone" },
+];
+
 const navLinks = [
   { name: "Support", path: "/support" },
   { name: "FAQs", path: "/faqs" },
@@ -76,6 +81,27 @@ export function Navbar() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Projects Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted">
+                Explore Projects
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="w-56 bg-popover border border-border shadow-elevated">
+              {projectTypes.map((type) => (
+                <DropdownMenuItem
+                  key={type.name}
+                  onClick={() => navigate(type.path)}
+                  className="cursor-pointer py-3 focus:bg-muted"
+                >
+                  <span className="font-medium">{type.label}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Login Button */}
@@ -125,6 +151,22 @@ export function Navbar() {
                 className="block w-full text-left px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
               >
                 {dept.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="px-4 py-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Explore Projects</p>
+            {projectTypes.map((type) => (
+              <button
+                key={type.name}
+                onClick={() => {
+                  navigate(type.path);
+                  setMobileMenuOpen(false);
+                }}
+                className="block w-full text-left px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
+              >
+                {type.label}
               </button>
             ))}
           </div>
