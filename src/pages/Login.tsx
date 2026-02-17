@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { GraduationCap, Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { GraduationCap, Eye, EyeOff, Mail, Lock, Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,10 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+
+const SUPABASE_URL = "https://sbmgiolfbnhbdnsnazjy.supabase.co";
+
 const departments = [
   { value: "AIML", label: "AI & Machine Learning" },
   { value: "Computer", label: "Computer Engineering" },
@@ -24,6 +28,7 @@ const departments = [
 const semesters = ["Sem 1", "Sem 2", "Sem 3", "Sem 4", "Sem 5", "Sem 6"];
 
 type StudentMode = "signin" | "signup";
+type SignupStep = "form" | "otp";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -33,12 +38,176 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Student form fields
   const [studentEmail, setStudentEmail] = useState("");
   const [studentPassword, setStudentPassword] = useState("");
   const [studentName, setStudentName] = useState("");
   const [studentDepartment, setStudentDepartment] = useState("");
   const [studentSemester, setStudentSemester] = useState("");
 
+  // OTP verification state
+  const [signupStep, setSignupStep] = useState<SignupStep>("form");
+  const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""]);
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Countdown timer for resend
+  useEffect(() => {
+    if (resendTimer <= 0) return;
+    const interval = setInterval(() => setResendTimer((t) => t - 1), 1000);
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
+  // Auto-focus first OTP input when step changes
+  useEffect(() => {
+    if (signupStep === "otp") {
+      setTimeout(() => inputRefs.current[0]?.focus(), 100);
+    }
+  }, [signupStep]);
+
+  // Handle OTP input
+  const handleOtpChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return; // digits only
+
+    const newDigits = [...otpDigits];
+    newDigits[index] = value.slice(-1); // only last digit
+    setOtpDigits(newDigits);
+
+    // Auto-focus next input
+    if (value && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+    if (e.key === "Enter") {
+      const otp = otpDigits.join("");
+      if (otp.length === 6) handleVerifyOtp();
+    }
+  };
+
+  // Handle paste of full OTP
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (pasted.length === 0) return;
+    const newDigits = [...otpDigits];
+    for (let i = 0; i < 6; i++) {
+      newDigits[i] = pasted[i] || "";
+    }
+    setOtpDigits(newDigits);
+    // Focus last filled input or the next empty one
+    const focusIdx = Math.min(pasted.length, 5);
+    inputRefs.current[focusIdx]?.focus();
+  };
+
+  // Send OTP to email
+  const sendOtp = async () => {
+    setOtpSending(true);
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/send-otp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${supabase["supabaseKey"] || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNibWdpb2xmYm5oYmRuc25hemp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5MzQxMTQsImV4cCI6MjA4MzUxMDExNH0.WUXfpG9XeN8arjjh5vBxtFZth39-cuZHaH3Wh_1VYpc"}`,
+        },
+        body: JSON.stringify({ email: studentEmail.toLowerCase().trim() }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send OTP");
+
+      toast({ title: "OTP Sent!", description: `Verification code sent to ${studentEmail}` });
+      setResendTimer(60); // 60 second cooldown
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to send OTP";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  // Step 1: Validate form and send OTP
+  const handleSignupSubmit = async () => {
+    if (!studentName || !studentEmail || !studentPassword) {
+      toast({ title: "Missing fields", description: "Please fill in all required fields.", variant: "destructive" });
+      return;
+    }
+    if (studentPassword.length < 6) {
+      toast({ title: "Weak password", description: "Password must be at least 6 characters.", variant: "destructive" });
+      return;
+    }
+
+    // Send OTP and move to verification step
+    await sendOtp();
+    setSignupStep("otp");
+  };
+
+  // Step 2: Verify OTP then create account
+  const handleVerifyOtp = async () => {
+    const otp = otpDigits.join("");
+    if (otp.length !== 6) {
+      toast({ title: "Invalid OTP", description: "Please enter all 6 digits.", variant: "destructive" });
+      return;
+    }
+
+    setOtpVerifying(true);
+    try {
+      // Verify OTP via Supabase RPC
+      const { data: isValid, error: rpcError } = await supabase.rpc("verify_email_otp", {
+        p_email: studentEmail.toLowerCase().trim(),
+        p_otp: otp,
+      });
+
+      if (rpcError) throw new Error(rpcError.message);
+      if (!isValid) {
+        toast({ title: "Invalid OTP", description: "The code is incorrect or expired. Please try again.", variant: "destructive" });
+        setOtpDigits(["", "", "", "", "", ""]);
+        inputRefs.current[0]?.focus();
+        setOtpVerifying(false);
+        return;
+      }
+
+      // OTP verified — create the account
+      setLoading(true);
+      const { error } = await signUp(studentEmail, studentPassword, studentName, studentDepartment, studentSemester);
+      setLoading(false);
+
+      if (error) {
+        toast({ title: "Sign Up Failed", description: error, variant: "destructive" });
+        setOtpVerifying(false);
+        return;
+      }
+
+      toast({ title: "Account created!", description: "Email verified. You can now access study materials." });
+      navigate("/");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Verification failed";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
+
+  // Resend OTP
+  const handleResendOtp = async () => {
+    if (resendTimer > 0) return;
+    setOtpDigits(["", "", "", "", "", ""]);
+    await sendOtp();
+  };
+
+  // Go back from OTP step to form
+  const handleBackToForm = () => {
+    setSignupStep("form");
+    setOtpDigits(["", "", "", "", "", ""]);
+  };
+
+  // Sign in handler
   const handleStudentSignIn = async () => {
     if (!studentEmail || !studentPassword) {
       toast({ title: "Missing fields", description: "Please enter email and password.", variant: "destructive" });
@@ -57,37 +226,6 @@ export default function Login() {
     navigate("/");
   };
 
-  const handleStudentSignUp = async () => {
-    if (!studentName || !studentEmail || !studentPassword) {
-      toast({ title: "Missing fields", description: "Please fill in all required fields.", variant: "destructive" });
-      return;
-    }
-    if (studentPassword.length < 6) {
-      toast({ title: "Weak password", description: "Password must be at least 6 characters.", variant: "destructive" });
-      return;
-    }
-    setLoading(true);
-    const { error, confirmEmail } = await signUp(studentEmail, studentPassword, studentName, studentDepartment, studentSemester);
-    setLoading(false);
-
-    if (error) {
-      toast({ title: "Sign Up Failed", description: error, variant: "destructive" });
-      return;
-    }
-
-    if (confirmEmail) {
-      toast({
-        title: "Check your email!",
-        description: "A confirmation link has been sent to your email. Please verify before signing in.",
-      });
-      setStudentMode("signin");
-      return;
-    }
-
-    toast({ title: "Account created!", description: "You can now access study materials." });
-    navigate("/");
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 px-4 py-12">
       <div className="w-full max-w-md space-y-6">
@@ -102,8 +240,77 @@ export default function Login() {
           <p className="text-sm text-muted-foreground">Sign in to access your study materials</p>
         </div>
 
-        {/* Student Login */}
-        <Card className="border-border/50 shadow-elevated">
+        {/* ===== OTP Verification Step ===== */}
+        {studentMode === "signup" && signupStep === "otp" ? (
+          <Card className="border-border/50 shadow-elevated">
+            <CardHeader className="space-y-1 pb-4">
+              <button
+                onClick={handleBackToForm}
+                className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors mb-1 w-fit"
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Back
+              </button>
+              <CardTitle className="text-xl">Verify Your Email</CardTitle>
+              <CardDescription>
+                We sent a 6-digit code to <span className="font-medium text-foreground">{studentEmail}</span>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {/* OTP Input Boxes */}
+              <div className="flex justify-center gap-2" onPaste={handleOtpPaste}>
+                {otpDigits.map((digit, i) => (
+                  <Input
+                    key={i}
+                    ref={(el) => { inputRefs.current[i] = el; }}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(i, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                    className="w-11 h-12 text-center text-lg font-semibold"
+                    disabled={otpVerifying}
+                  />
+                ))}
+              </div>
+
+              {/* Verify Button */}
+              <Button
+                onClick={handleVerifyOtp}
+                disabled={otpVerifying || loading || otpDigits.join("").length !== 6}
+                className="w-full"
+              >
+                {otpVerifying || loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    {otpVerifying ? "Verifying..." : "Creating Account..."}
+                  </>
+                ) : (
+                  "Verify & Create Account"
+                )}
+              </Button>
+
+              {/* Resend */}
+              <div className="text-center text-sm text-muted-foreground">
+                Didn't receive the code?{" "}
+                {resendTimer > 0 ? (
+                  <span className="text-muted-foreground">Resend in {resendTimer}s</span>
+                ) : (
+                  <button
+                    onClick={handleResendOtp}
+                    disabled={otpSending}
+                    className="text-primary font-medium hover:underline disabled:opacity-50"
+                  >
+                    {otpSending ? "Sending..." : "Resend"}
+                  </button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          /* ===== Sign In / Sign Up Form ===== */
+          <Card className="border-border/50 shadow-elevated">
             <CardHeader className="space-y-1 pb-4">
               <CardTitle className="text-xl">
                 {studentMode === "signin" ? "Student Sign In" : "Create Account"}
@@ -153,7 +360,7 @@ export default function Login() {
                     onChange={(e) => setStudentPassword(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
-                        studentMode === "signin" ? handleStudentSignIn() : handleStudentSignUp();
+                        studentMode === "signin" ? handleStudentSignIn() : handleSignupSubmit();
                       }
                     }}
                     className="pl-10 pr-10"
@@ -200,13 +407,20 @@ export default function Login() {
               )}
 
               <Button
-                onClick={studentMode === "signin" ? handleStudentSignIn : handleStudentSignUp}
-                disabled={loading}
+                onClick={studentMode === "signin" ? handleStudentSignIn : handleSignupSubmit}
+                disabled={loading || otpSending}
                 className="w-full"
               >
-                {loading
-                  ? (studentMode === "signin" ? "Signing in..." : "Creating account...")
-                  : (studentMode === "signin" ? "Sign In" : "Create Account")}
+                {loading ? (
+                  studentMode === "signin" ? "Signing in..." : "Creating account..."
+                ) : otpSending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Sending verification code...
+                  </>
+                ) : (
+                  studentMode === "signin" ? "Sign In" : "Continue"
+                )}
               </Button>
 
               <div className="text-center text-sm text-muted-foreground">
@@ -214,7 +428,7 @@ export default function Login() {
                   <>
                     Don't have an account?{" "}
                     <button
-                      onClick={() => setStudentMode("signup")}
+                      onClick={() => { setStudentMode("signup"); setSignupStep("form"); }}
                       className="text-primary font-medium hover:underline"
                     >
                       Sign up
@@ -224,7 +438,7 @@ export default function Login() {
                   <>
                     Already have an account?{" "}
                     <button
-                      onClick={() => setStudentMode("signin")}
+                      onClick={() => { setStudentMode("signin"); setSignupStep("form"); }}
                       className="text-primary font-medium hover:underline"
                     >
                       Sign in
@@ -234,6 +448,7 @@ export default function Login() {
               </div>
             </CardContent>
           </Card>
+        )}
       </div>
     </div>
   );
