@@ -1,7 +1,15 @@
-import { Outlet, Link } from "react-router-dom";
+import { Outlet, Link, Navigate } from "react-router-dom";
 import { Navbar } from "./Navbar";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function Layout() {
+  const { user, role, loading } = useAuth();
+
+  // Admin should never see student pages — send them to admin dashboard
+  if (!loading && user && role === "admin") {
+    return <Navigate to="/admin" replace />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />

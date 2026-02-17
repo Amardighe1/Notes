@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DiploMate</string>
+    <string name="title_activity_main">DiploMate</string>
+    <string name="package_name">com.diplomate.app</string>
+    <string name="custom_url_scheme">com.diplomate.app</string>
+</resources>

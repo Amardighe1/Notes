@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { GraduationCap, Shield, User, ArrowRight, ArrowLeft, Eye, EyeOff, KeyRound, Mail, Lock } from "lucide-react";
+import { GraduationCap, Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,18 +14,6 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
-
-// Hashed admin ID — the plaintext is never in the client bundle
-const ADMIN_ID_HASH = "f9a10cef19eb4355c1b545f4434c230d";
-
-async function sha256Hex(input: string): Promise<string> {
-  const encoded = new TextEncoder().encode(input);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", encoded);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
-}
-
 const departments = [
   { value: "AIML", label: "AI & Machine Learning" },
   { value: "Computer", label: "Computer Engineering" },
@@ -35,59 +23,21 @@ const departments = [
 
 const semesters = ["Sem 1", "Sem 2", "Sem 3", "Sem 4", "Sem 5", "Sem 6"];
 
-type LoginTab = "admin" | "student";
 type StudentMode = "signin" | "signup";
 
 export default function Login() {
   const navigate = useNavigate();
   const { signIn, signUp } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<LoginTab>("student");
   const [studentMode, setStudentMode] = useState<StudentMode>("signin");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Admin state
-  const [adminStep, setAdminStep] = useState<1 | 2>(1);
-  const [adminId, setAdminId] = useState("");
-  const [adminEmail, setAdminEmail] = useState("");
-  const [adminPassword, setAdminPassword] = useState("");
-  const [adminIdError, setAdminIdError] = useState("");
-
-  // Student state
   const [studentEmail, setStudentEmail] = useState("");
   const [studentPassword, setStudentPassword] = useState("");
   const [studentName, setStudentName] = useState("");
   const [studentDepartment, setStudentDepartment] = useState("");
   const [studentSemester, setStudentSemester] = useState("");
-
-  const handleAdminIdSubmit = async () => {
-    const inputHash = await sha256Hex(adminId.trim());
-    if (inputHash === ADMIN_ID_HASH) {
-      setAdminIdError("");
-      setAdminStep(2);
-    } else {
-      setAdminIdError("Invalid Admin ID. Access denied.");
-    }
-  };
-
-  const handleAdminLogin = async () => {
-    setLoading(true);
-    const { error } = await signIn(adminEmail, adminPassword);
-    setLoading(false);
-
-    if (error) {
-      toast({
-        title: "Login Failed",
-        description: error,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({ title: "Welcome, Admin!", description: "Redirecting to dashboard..." });
-    navigate("/admin");
-  };
 
   const handleStudentSignIn = async () => {
     if (!studentEmail || !studentPassword) {
@@ -152,128 +102,8 @@ export default function Login() {
           <p className="text-sm text-muted-foreground">Sign in to access your study materials</p>
         </div>
 
-        {/* Tab Selector */}
-        <div className="flex rounded-xl bg-muted/50 p-1 gap-1">
-          <button
-            onClick={() => { setActiveTab("student"); setAdminStep(1); setAdminIdError(""); }}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-all",
-              activeTab === "student"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <User className="h-4 w-4" />
-            Student
-          </button>
-          <button
-            onClick={() => { setActiveTab("admin"); setStudentMode("signin"); }}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-all",
-              activeTab === "admin"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Shield className="h-4 w-4" />
-            Admin
-          </button>
-        </div>
-
-        {/* Admin Login */}
-        {activeTab === "admin" && (
-          <Card className="border-border/50 shadow-elevated">
-            <CardHeader className="space-y-1 pb-4">
-              <CardTitle className="text-xl">Admin Login</CardTitle>
-              <CardDescription>
-                {adminStep === 1
-                  ? "Enter your Admin ID to proceed"
-                  : "Enter your admin credentials"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {adminStep === 1 ? (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-id">Admin ID</Label>
-                    <div className="relative">
-                      <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="admin-id"
-                        type="text"
-                        placeholder="Enter your Admin ID"
-                        value={adminId}
-                        onChange={(e) => { setAdminId(e.target.value); setAdminIdError(""); }}
-                        onKeyDown={(e) => e.key === "Enter" && handleAdminIdSubmit()}
-                        className="pl-10"
-                      />
-                    </div>
-                    {adminIdError && (
-                      <p className="text-sm text-destructive">{adminIdError}</p>
-                    )}
-                  </div>
-                  <Button onClick={handleAdminIdSubmit} className="w-full gap-2">
-                    Continue
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => setAdminStep(1)}
-                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <ArrowLeft className="h-3.5 w-3.5" />
-                    Back
-                  </button>
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="admin-email"
-                        type="email"
-                        placeholder="admin@example.com"
-                        value={adminEmail}
-                        onChange={(e) => setAdminEmail(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-password">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="admin-password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="••••••••"
-                        value={adminPassword}
-                        onChange={(e) => setAdminPassword(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
-                        className="pl-10 pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-                  <Button onClick={handleAdminLogin} disabled={loading} className="w-full">
-                    {loading ? "Signing in..." : "Sign In as Admin"}
-                  </Button>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
         {/* Student Login */}
-        {activeTab === "student" && (
-          <Card className="border-border/50 shadow-elevated">
+        <Card className="border-border/50 shadow-elevated">
             <CardHeader className="space-y-1 pb-4">
               <CardTitle className="text-xl">
                 {studentMode === "signin" ? "Student Sign In" : "Create Account"}
@@ -404,7 +234,6 @@ export default function Login() {
               </div>
             </CardContent>
           </Card>
-        )}
       </div>
     </div>
   );

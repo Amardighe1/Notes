@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getDeviceId } from "@/lib/device-id";
 import type { User, Session } from "@supabase/supabase-js";
 
 export type UserRole = "admin" | "student";
@@ -114,8 +115,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string): Promise<{ error: string | null }> => {
     profileFetchedRef.current = null; // Reset so profile refetches after login
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: error.message };
+
+    // Device verification — skip for admin accounts
+    const userId = data.user?.id;
+    if (userId) {
+      try {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("device_id, role")
+          .eq("id", userId)
+          .single();
+
+        // Only enforce device check for students, not admins
+        if (prof && prof.role !== "admin") {
+          const currentDeviceId = await getDeviceId();
+
+          if (prof.device_id && prof.device_id !== currentDeviceId) {
+            // Different device — sign out immediately and block
+            await supabase.auth.signOut();
+            return { error: "This account is already registered on another device. Please contact admin to reset." };
+          }
+
+          // First login after migration or device reset — bind this device
+          if (!prof.device_id) {
+            await supabase
+              .from("profiles")
+              .update({ device_id: currentDeviceId })
+              .eq("id", userId);
+          }
+        }
+      } catch {
+        // If profile fetch fails, allow login (don't lock out on network errors)
+      }
+    }
+
     return { error: null };
   }, []);
 
@@ -141,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) return { error: error.message };
 
     if (data.user) {
+      const deviceId = await getDeviceId();
       await supabase.from("profiles").upsert({
         id: data.user.id,
         email,
@@ -148,6 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: "student",
         department: department || null,
         semester: semester || null,
+        device_id: deviceId,
       });
     }
     if (data.user && !data.session) {

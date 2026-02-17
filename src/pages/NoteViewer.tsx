@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Loader2, Lock, BookMarked, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ArrowLeft, Loader2, Lock, BookMarked,
+  ChevronLeft, ChevronRight, RefreshCw,
+} from "lucide-react";
 
 interface NoteFile {
   id: string;
@@ -27,7 +30,46 @@ export default function NoteViewer() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [authorized, setAuthorized] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [iframeLoading, setIframeLoading] = useState(true);
+  const [iframeKey, setIframeKey] = useState(0);
 
+  // ----- Screenshot / Screen Recording Protection -----
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key === "PrintScreen" ||
+        (e.ctrlKey && e.shiftKey && (e.key === "S" || e.key === "s")) ||
+        (e.ctrlKey && e.key === "p") ||
+        (e.ctrlKey && e.key === "P")
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+
+    const handleVisibilityChange = () => {
+      const overlay = document.getElementById("screen-protect-overlay");
+      if (overlay) {
+        overlay.style.display = document.hidden ? "flex" : "none";
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown, true);
+    document.addEventListener("contextmenu", handleContextMenu, true);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown, true);
+      document.removeEventListener("contextmenu", handleContextMenu, true);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
+  // Verify purchase and load notes list
   useEffect(() => {
     if (!user) {
       navigate("/login");
@@ -41,7 +83,6 @@ export default function NoteViewer() {
     const verify = async () => {
       setLoading(true);
 
-      // Verify purchase is approved
       const { data: purchase } = await supabase
         .from("purchases")
         .select("id, status")
@@ -58,7 +99,6 @@ export default function NoteViewer() {
 
       setAuthorized(true);
 
-      // Fetch all notes in this folder
       const { data: notesData } = await supabase
         .from("notes")
         .select("id, title, file_url, file_name, file_size")
@@ -68,7 +108,6 @@ export default function NoteViewer() {
 
       if (notesData) {
         setNotes(notesData);
-        // If a specific noteId was passed, navigate to it
         if (noteId) {
           const idx = notesData.findIndex((n) => n.id === noteId);
           if (idx >= 0) setCurrentIndex(idx);
@@ -80,7 +119,28 @@ export default function NoteViewer() {
     verify();
   }, [user, folderId, noteId, navigate]);
 
+  // Reset iframe loading state when switching notes
+  useEffect(() => {
+    setIframeLoading(true);
+    setIframeKey((k) => k + 1);
+  }, [currentIndex]);
+
   const currentNote = notes[currentIndex];
+
+  // Build Google Docs Viewer URL
+  const getViewerUrl = (fileUrl: string): string => {
+    const encodedUrl = encodeURIComponent(fileUrl);
+    return `https://docs.google.com/gview?url=${encodedUrl}&embedded=true`;
+  };
+
+  const handleIframeLoad = () => {
+    setIframeLoading(false);
+  };
+
+  const handleRetry = () => {
+    setIframeLoading(true);
+    setIframeKey((k) => k + 1);
+  };
 
   const formatFileSize = (bytes: number | null) => {
     if (!bytes) return "";
@@ -88,6 +148,8 @@ export default function NoteViewer() {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   };
+
+  // ---------- Render ----------
 
   if (loading) {
     return (
@@ -139,29 +201,47 @@ export default function NoteViewer() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-200px)] py-6 lg:py-8 bg-gradient-to-b from-primary/[0.02] to-background">
+    <div
+      className="min-h-[calc(100vh-200px)] py-4 lg:py-6 bg-gradient-to-b from-primary/[0.02] to-background"
+      style={{ userSelect: "none", WebkitUserSelect: "none" }}
+      onCopy={(e) => e.preventDefault()}
+      onCut={(e) => e.preventDefault()}
+    >
+      {/* Protection overlay — shown when app loses focus */}
+      <div
+        id="screen-protect-overlay"
+        className="fixed inset-0 z-[9999] bg-background items-center justify-center"
+        style={{ display: "none" }}
+      >
+        <div className="text-center">
+          <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <p className="text-lg font-semibold text-foreground">Content Protected</p>
+          <p className="text-muted-foreground text-sm mt-1">Return to the app to view notes</p>
+        </div>
+      </div>
+
       <div className="container">
         {/* Header */}
-        <div className="mb-4 animate-fade-up">
+        <div className="mb-3 animate-fade-up">
           <Link
             to="/my-purchases"
-            className="inline-flex items-center text-sm text-muted-foreground hover:text-primary transition-colors mb-3 group"
+            className="inline-flex items-center text-sm text-muted-foreground hover:text-primary transition-colors mb-2 group"
           >
             <ArrowLeft className="mr-1.5 h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
             Back to My Purchases
           </Link>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
-              <h1 className="text-2xl lg:text-3xl font-bold text-foreground">{decodeURIComponent(folderName)}</h1>
-              <p className="text-sm text-muted-foreground">
+              <h1 className="text-xl lg:text-2xl font-bold text-foreground">{decodeURIComponent(folderName)}</h1>
+              <p className="text-xs text-muted-foreground">
                 {currentNote?.title}
                 {currentNote?.file_name && ` • ${currentNote.file_name}`}
                 {currentNote?.file_size ? ` (${formatFileSize(currentNote.file_size)})` : ""}
               </p>
             </div>
 
-            {/* Note navigation */}
+            {/* Note navigation (multi-note folders) */}
             {notes.length > 1 && (
               <div className="flex items-center gap-2">
                 <Button
@@ -173,7 +253,7 @@ export default function NoteViewer() {
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <span className="text-sm font-medium text-muted-foreground px-2">
+                <span className="text-sm font-medium text-muted-foreground px-1">
                   {currentIndex + 1} / {notes.length}
                 </span>
                 <Button
@@ -219,20 +299,51 @@ export default function NoteViewer() {
             </div>
           )}
 
-          {/* PDF Viewer */}
+          {/* PDF Viewer via Google Docs Viewer */}
           <div className="flex-1 min-w-0">
             {currentNote?.file_url ? (
-              <div className="rounded-xl border border-border overflow-hidden bg-background shadow-sm relative">
-                <iframe
-                  key={currentNote.id}
-                  src={`https://docs.google.com/gview?url=${encodeURIComponent(currentNote.file_url)}&embedded=true`}
-                  className="w-full border-0"
+              <div className="rounded-xl border border-border overflow-hidden bg-background shadow-sm flex flex-col">
+                {/* Toolbar with reload button */}
+                <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30">
+                  <span className="text-xs text-muted-foreground">
+                    PDF Viewer — {currentNote.title}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleRetry}
+                    className="h-7 gap-1.5 text-xs"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Reload
+                  </Button>
+                </div>
+
+                {/* Iframe Container */}
+                <div
+                  className="relative"
                   style={{ height: "calc(100vh - 220px)", minHeight: "500px" }}
-                  title={currentNote.title}
-                  allowFullScreen
-                />
-                {/* Cover the Google Docs Viewer pop-out button */}
-                <div className="absolute top-0 right-0 w-12 h-12 bg-white dark:bg-background z-10" />
+                >
+                  {/* Loading overlay */}
+                  {iframeLoading && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-background z-10">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
+                      <p className="text-sm text-muted-foreground">Loading PDF...</p>
+                      <p className="text-xs text-muted-foreground mt-1">This may take a few seconds</p>
+                    </div>
+                  )}
+
+                  {/* Google Docs Viewer iframe — no allow-popups so open-in-new-tab is blocked */}
+                  <iframe
+                    key={iframeKey}
+                    src={getViewerUrl(currentNote.file_url)}
+                    title={currentNote.title}
+                    className="w-full h-full border-0"
+                    onLoad={handleIframeLoad}
+                    sandbox="allow-scripts allow-same-origin"
+                    style={{ background: "#fff" }}
+                  />
+                </div>
               </div>
             ) : (
               <Card className="border-dashed border-2 border-border">

@@ -126,6 +126,7 @@ interface DBProfile {
   department: string | null;
   semester: string | null;
   is_verified: boolean | null;
+  device_id: string | null;
   created_at: string | null;
   last_login_at: string | null;
 }
@@ -280,7 +281,7 @@ export default function Admin() {
   const fetchUsers = async () => {
     const { data } = await supabase
       .from("profiles")
-      .select("id, email, full_name, role, department, semester, is_verified, created_at, last_login_at")
+      .select("id, email, full_name, role, department, semester, is_verified, device_id, created_at, last_login_at")
       .order("created_at", { ascending: false });
     if (data) setUsers(data);
   };
@@ -1140,6 +1141,8 @@ export default function Admin() {
                         <TableHead className="text-xs font-semibold">Department</TableHead>
                         <TableHead className="text-xs font-semibold">Semester</TableHead>
                         <TableHead className="text-xs font-semibold">Verified</TableHead>
+                        <TableHead className="text-xs font-semibold">Device</TableHead>
+                        <TableHead className="text-xs font-semibold">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1159,10 +1162,38 @@ export default function Admin() {
                               <Badge variant="outline" className="text-xs text-muted-foreground">Pending</Badge>
                             )}
                           </TableCell>
+                          <TableCell>
+                            {user.device_id ? (
+                              <Badge variant="outline" className="text-xs text-blue-600 border-blue-200">Bound</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs text-muted-foreground">Not Set</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {user.role !== "admin" && user.device_id && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs text-orange-600 border-orange-200 hover:bg-orange-50"
+                                onClick={async () => {
+                                  const { error } = await supabase
+                                    .from("profiles")
+                                    .update({ device_id: null } as any)
+                                    .eq("id", user.id);
+                                  if (!error) {
+                                    toast({ title: "Device Reset", description: `Device binding cleared for ${user.full_name || user.email}. They can now login from a new device.` });
+                                    fetchUsers();
+                                  }
+                                }}
+                              >
+                                Reset Device
+                              </Button>
+                            )}
+                          </TableCell>
                         </TableRow>
                       )) : (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                             {userSearchQuery ? "No users match your search." : "No users found."}
                           </TableCell>
                         </TableRow>
