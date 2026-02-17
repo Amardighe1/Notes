@@ -123,7 +123,7 @@ export default function Index() {
                 </Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="rounded-full px-8 h-12 text-base border-border hover:bg-muted/50">
-                <Link to="/notes-selection">
+                <Link to="/projects">
                   Explore Projects
                 </Link>
               </Button>
