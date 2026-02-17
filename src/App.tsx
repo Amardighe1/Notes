@@ -1,21 +1,46 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Layout } from "./components/Layout";
 import Index from "./pages/Index";
-import NotesSelection from "./pages/NotesSelection";
-import NotesList from "./pages/NotesList";
-import Admin from "./pages/Admin";
-import Projects from "./pages/Projects";
-import Departments from "./pages/Departments";
-import Support from "./pages/Support";
-import FAQs from "./pages/FAQs";
-import Terms from "./pages/Terms";
-import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+// Lazy-load heavy pages — only download when navigated to
+const NotesSelection = lazy(() => import("./pages/NotesSelection"));
+const NotesList = lazy(() => import("./pages/NotesList"));
+const Admin = lazy(() => import("./pages/Admin"));
+const Projects = lazy(() => import("./pages/Projects"));
+const Support = lazy(() => import("./pages/Support"));
+const FAQs = lazy(() => import("./pages/FAQs"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Login = lazy(() => import("./pages/Login"));
+const PaymentPage = lazy(() => import("./pages/PaymentPage"));
+const MyPurchases = lazy(() => import("./pages/MyPurchases"));
+const NoteViewer = lazy(() => import("./pages/NoteViewer"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+// Stable QueryClient — created once at module level
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 min — avoid refetching on every mount
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    </div>
+  );
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -23,20 +48,34 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route element={<Layout />}>
-            <Route path="/" element={<Index />} />
-            <Route path="/notes-selection" element={<NotesSelection />} />
-            <Route path="/notes-list" element={<NotesList />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/departments" element={<Departments />} />
-            <Route path="/support" element={<Support />} />
-            <Route path="/faqs" element={<FAQs />} />
-            <Route path="/terms" element={<Terms />} />
-          </Route>
-          <Route path="/admin" element={<Admin />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route element={<Layout />}>
+                <Route path="/" element={<Index />} />
+                <Route path="/notes-selection" element={<NotesSelection />} />
+                <Route path="/notes-list" element={<NotesList />} />
+                <Route path="/projects" element={<Projects />} />
+                <Route path="/support" element={<Support />} />
+                <Route path="/faqs" element={<FAQs />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/payment" element={<PaymentPage />} />
+                <Route path="/my-purchases" element={<MyPurchases />} />
+                <Route path="/view-notes" element={<NoteViewer />} />
+              </Route>
+              <Route path="/login" element={<Login />} />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <Admin />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

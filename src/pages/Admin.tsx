@@ -58,6 +58,13 @@ import {
   Search,
   Shield,
   RefreshCw,
+  CreditCard,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  ExternalLink,
+  Phone,
+  IndianRupee,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -123,13 +130,41 @@ interface DBProfile {
   last_login_at: string | null;
 }
 
+interface DBPurchase {
+  id: string;
+  user_id: string;
+  folder_id: string;
+  status: string;
+  amount: number;
+  buyer_name: string;
+  phone_number: string;
+  account_holder_name: string;
+  payment_screenshot_url: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  rejection_reason: string | null;
+  created_at: string | null;
+  // joined
+  user_email?: string;
+  user_name?: string;
+  folder_name?: string;
+  folder_subject?: string;
+  folder_department?: string;
+  folder_semester?: string;
+}
+
 export default function Admin() {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [folders, setFolders] = useState<DBFolder[]>([]);
   const [notes, setNotes] = useState<DBNote[]>([]);
   const [projects, setProjects] = useState<DBProject[]>([]);
   const [users, setUsers] = useState<DBProfile[]>([]);
+  const [purchases, setPurchases] = useState<DBPurchase[]>([]);
   const [loading, setLoading] = useState(false);
+  const [purchaseFilter, setPurchaseFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
+  const [rejectingPurchaseId, setRejectingPurchaseId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [screenshotModal, setScreenshotModal] = useState<string | null>(null);
   
   // Dialogs
   const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false);
@@ -152,6 +187,10 @@ export default function Admin() {
     allowRegistration: true,
     maxUploadSize: "10",
   });
+
+  // File upload
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   // Custom subject
   const [isCustomSubject, setIsCustomSubject] = useState(false);
@@ -187,31 +226,165 @@ export default function Admin() {
     ? subjectsByDeptSem[folderFormData.department]?.[folderFormData.semester] || []
     : [];
 
-  // Fetch data on mount
+  // Fetch folders on mount (needed for dashboard stats + dept sections)
   useEffect(() => {
     fetchFolders();
-    fetchProjects();
-    fetchUsers();
   }, []);
 
+  // Lazy-load projects only when projects section is active
+  useEffect(() => {
+    if (activeSection === "projects" || activeSection === "dashboard") {
+      if (projects.length === 0) fetchProjects();
+    }
+  }, [activeSection]);
+
+  // Lazy-load users only when users section is active
+  useEffect(() => {
+    if (activeSection === "users") {
+      if (users.length === 0) fetchUsers();
+    }
+  }, [activeSection]);
+
+  // Lazy-load purchases when payments section is active
+  useEffect(() => {
+    if (activeSection === "payments") {
+      fetchPurchases();
+    }
+  }, [activeSection, purchaseFilter]);
+
   const fetchFolders = async () => {
-    const { data } = await supabase.from("folders").select("*").order("created_at", { ascending: false });
+    const { data } = await supabase
+      .from("folders")
+      .select("id, name, department, semester, subject, description, notes_count, is_active, is_custom_subject, custom_subject_id")
+      .order("created_at", { ascending: false });
     if (data) setFolders(data);
   };
 
   const fetchNotesForFolder = async (folderId: string) => {
-    const { data } = await supabase.from("notes").select("*").eq("folder_id", folderId).order("created_at", { ascending: false });
+    const { data } = await supabase
+      .from("notes")
+      .select("id, title, description, folder_id, file_url, file_name, file_size, download_count, view_count, is_active")
+      .eq("folder_id", folderId)
+      .order("created_at", { ascending: false });
     if (data) setNotes(data);
   };
 
   const fetchProjects = async () => {
-    const { data } = await supabase.from("projects").select("*").order("created_at", { ascending: false });
+    const { data } = await supabase
+      .from("projects")
+      .select("id, title, description, department, semester, project_type, author, tech_stack, github_url, demo_url, is_active, is_featured, created_at")
+      .order("created_at", { ascending: false });
     if (data) setProjects(data as DBProject[]);
   };
 
   const fetchUsers = async () => {
-    const { data } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, email, full_name, role, department, semester, is_verified, created_at, last_login_at")
+      .order("created_at", { ascending: false });
     if (data) setUsers(data);
+  };
+
+  const fetchPurchases = async () => {
+    // Step 1: Fetch purchases (no profiles join — FK points to auth.users, not profiles)
+    let query = supabase
+      .from("purchases")
+      .select(`
+        id, user_id, folder_id, status, amount, buyer_name, phone_number,
+        account_holder_name, payment_screenshot_url, reviewed_by, reviewed_at,
+        rejection_reason, created_at
+      `)
+      .order("created_at", { ascending: false });
+
+    if (purchaseFilter !== "all") {
+      query = query.eq("status", purchaseFilter);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error("Error fetching purchases:", error);
+      return;
+    }
+    if (!data || data.length === 0) {
+      setPurchases([]);
+      return;
+    }
+
+    // Step 2: Batch-fetch folder details for all unique folder IDs
+    const folderIds = [...new Set(data.map((p) => p.folder_id))];
+    const { data: folderData } = await supabase
+      .from("folders")
+      .select("id, name, subject, department, semester")
+      .in("id", folderIds);
+    const folderMap: Record<string, any> = {};
+    if (folderData) {
+      for (const f of folderData) folderMap[f.id] = f;
+    }
+
+    // Step 3: Batch-fetch user profiles for all unique user IDs
+    const userIds = [...new Set(data.map((p) => p.user_id))];
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("id, email, full_name")
+      .in("id", userIds);
+    const profileMap: Record<string, any> = {};
+    if (profileData) {
+      for (const pr of profileData) profileMap[pr.id] = pr;
+    }
+
+    // Step 4: Merge everything
+    const mapped: DBPurchase[] = data.map((p: any) => {
+      const folder = folderMap[p.folder_id];
+      const profile = profileMap[p.user_id];
+      return {
+        ...p,
+        user_email: profile?.email || "",
+        user_name: profile?.full_name || "",
+        folder_name: folder?.name || "Unknown",
+        folder_subject: folder?.subject || "",
+        folder_department: folder?.department || "",
+        folder_semester: folder?.semester || "",
+      };
+    });
+    setPurchases(mapped);
+  };
+
+  const handleApprovePurchase = async (purchaseId: string) => {
+    const { error } = await supabase
+      .from("purchases")
+      .update({
+        status: "approved",
+        reviewed_at: new Date().toISOString(),
+        rejection_reason: null,
+      })
+      .eq("id", purchaseId);
+
+    if (error) {
+      toast({ title: "Error approving", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Payment approved!", description: "Student can now access the notes." });
+      fetchPurchases();
+    }
+  };
+
+  const handleRejectPurchase = async (purchaseId: string) => {
+    const { error } = await supabase
+      .from("purchases")
+      .update({
+        status: "rejected",
+        reviewed_at: new Date().toISOString(),
+        rejection_reason: rejectionReason || "Payment proof not valid",
+      })
+      .eq("id", purchaseId);
+
+    if (error) {
+      toast({ title: "Error rejecting", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Payment rejected", description: "Student has been notified." });
+      setRejectingPurchaseId(null);
+      setRejectionReason("");
+      fetchPurchases();
+    }
   };
 
   // Handlers
@@ -225,6 +398,22 @@ export default function Admin() {
   const resetNoteForm = () => {
     setNoteFormData({ title: "", description: "" });
     setEditingNote(null);
+    setSelectedFile(null);
+  };
+
+  const uploadFileToStorage = async (file: File, folderId: string): Promise<{ url: string; path: string } | null> => {
+    const fileExt = file.name.split(".").pop();
+    const filePath = `${folderId}/${Date.now()}_${file.name}`;
+    const { error } = await supabase.storage.from("notes-files").upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+    if (error) {
+      toast({ title: "Error uploading file", description: error.message, variant: "destructive" });
+      return null;
+    }
+    const { data: urlData } = supabase.storage.from("notes-files").getPublicUrl(filePath);
+    return { url: urlData.publicUrl, path: filePath };
   };
 
   const resetProjectForm = () => {
@@ -237,20 +426,20 @@ export default function Admin() {
     
     // If custom subject, save to custom_subjects table first
     if (isCustomSubject && customSubjectName) {
-      await supabase.from("custom_subjects").insert({
-        name: customSubjectName,
-        department: folderFormData.department,
-        semester: folderFormData.semester,
+      await supabase.rpc("admin_create_custom_subject", {
+        p_name: customSubjectName,
+        p_department: folderFormData.department,
+        p_semester: folderFormData.semester,
       });
     }
 
-    const { error } = await supabase.from("folders").insert({
-      name: folderFormData.name,
-      department: folderFormData.department,
-      semester: folderFormData.semester,
-      subject: subject,
-      description: folderFormData.description,
-      is_custom_subject: isCustomSubject,
+    const { error } = await supabase.rpc("admin_create_folder", {
+      p_name: folderFormData.name,
+      p_department: folderFormData.department,
+      p_semester: folderFormData.semester,
+      p_subject: subject,
+      p_description: folderFormData.description || null,
+      p_is_custom_subject: isCustomSubject,
     });
     if (error) {
       toast({ title: "Error creating folder", description: error.message, variant: "destructive" });
@@ -265,13 +454,14 @@ export default function Admin() {
   const handleEditFolder = async () => {
     if (!editingFolder) return;
     const subject = isCustomSubject ? customSubjectName : folderFormData.subject;
-    const { error } = await supabase.from("folders").update({
-      name: folderFormData.name,
-      department: folderFormData.department,
-      semester: folderFormData.semester,
-      subject: subject,
-      description: folderFormData.description,
-    }).eq("id", editingFolder.id);
+    const { error } = await supabase.rpc("admin_update_folder", {
+      p_id: editingFolder.id,
+      p_name: folderFormData.name,
+      p_department: folderFormData.department,
+      p_semester: folderFormData.semester,
+      p_subject: subject,
+      p_description: folderFormData.description || null,
+    });
     if (error) {
       toast({ title: "Error updating folder", description: error.message, variant: "destructive" });
     } else {
@@ -283,7 +473,7 @@ export default function Admin() {
   };
 
   const handleDeleteFolder = async (id: string) => {
-    const { error } = await supabase.from("folders").delete().eq("id", id);
+    const { error } = await supabase.rpc("admin_delete_folder", { p_id: id });
     if (error) {
       toast({ title: "Error deleting folder", description: error.message, variant: "destructive" });
     } else {
@@ -294,10 +484,33 @@ export default function Admin() {
 
   const handleAddNote = async () => {
     if (!selectedFolder) return;
-    const { error } = await supabase.from("notes").insert({
-      title: noteFormData.title,
-      description: noteFormData.description,
-      folder_id: selectedFolder.id,
+    setUploading(true);
+
+    let fileUrl: string | null = null;
+    let fileName: string | null = null;
+    let fileSize: number | null = null;
+    let fileType: string | null = null;
+    let storagePath: string | null = null;
+
+    if (selectedFile) {
+      const result = await uploadFileToStorage(selectedFile, selectedFolder.id);
+      if (!result) { setUploading(false); return; }
+      fileUrl = result.url;
+      fileName = selectedFile.name;
+      fileSize = selectedFile.size;
+      fileType = selectedFile.type;
+      storagePath = result.path;
+    }
+
+    const { error } = await supabase.rpc("admin_create_note", {
+      p_title: noteFormData.title,
+      p_description: noteFormData.description,
+      p_folder_id: selectedFolder.id,
+      p_file_url: fileUrl,
+      p_file_name: fileName,
+      p_file_size: fileSize,
+      p_file_type: fileType,
+      p_storage_path: storagePath,
     });
     if (error) {
       toast({ title: "Error adding note", description: error.message, variant: "destructive" });
@@ -305,28 +518,54 @@ export default function Admin() {
       toast({ title: "Note added successfully" });
       fetchNotesForFolder(selectedFolder.id);
     }
+    setUploading(false);
     setIsNoteDialogOpen(false);
     resetNoteForm();
   };
 
   const handleEditNote = async () => {
     if (!editingNote) return;
-    const { error } = await supabase.from("notes").update({
-      title: noteFormData.title,
-      description: noteFormData.description,
-    }).eq("id", editingNote.id);
+    setUploading(true);
+
+    let fileUrl: string | null = null;
+    let fileName: string | null = null;
+    let fileSize: number | null = null;
+    let fileType: string | null = null;
+    let storagePath: string | null = null;
+
+    if (selectedFile && selectedFolder) {
+      const result = await uploadFileToStorage(selectedFile, selectedFolder.id);
+      if (!result) { setUploading(false); return; }
+      fileUrl = result.url;
+      fileName = selectedFile.name;
+      fileSize = selectedFile.size;
+      fileType = selectedFile.type;
+      storagePath = result.path;
+    }
+
+    const { error } = await supabase.rpc("admin_update_note", {
+      p_id: editingNote.id,
+      p_title: noteFormData.title,
+      p_description: noteFormData.description,
+      p_file_url: fileUrl,
+      p_file_name: fileName,
+      p_file_size: fileSize,
+      p_file_type: fileType,
+      p_storage_path: storagePath,
+    });
     if (error) {
       toast({ title: "Error updating note", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Note updated successfully" });
       if (selectedFolder) fetchNotesForFolder(selectedFolder.id);
     }
+    setUploading(false);
     setIsNoteDialogOpen(false);
     resetNoteForm();
   };
 
   const handleDeleteNote = async (id: string) => {
-    const { error } = await supabase.from("notes").delete().eq("id", id);
+    const { error } = await supabase.rpc("admin_delete_note", { p_id: id });
     if (error) {
       toast({ title: "Error deleting note", description: error.message, variant: "destructive" });
     } else {
@@ -336,16 +575,16 @@ export default function Admin() {
   };
 
   const handleAddProject = async () => {
-    const { error } = await supabase.from("projects").insert({
-      title: projectFormData.title,
-      description: projectFormData.description,
-      department: projectFormData.department,
-      semester: projectFormData.semester,
-      project_type: projectFormData.project_type,
-      author: projectFormData.author || null,
-      tech_stack: projectFormData.tech_stack ? projectFormData.tech_stack.split(",").map(s => s.trim()) : null,
-      github_url: projectFormData.github_url || null,
-      demo_url: projectFormData.demo_url || null,
+    const { error } = await supabase.rpc("admin_create_project", {
+      p_title: projectFormData.title,
+      p_description: projectFormData.description,
+      p_department: projectFormData.department,
+      p_semester: projectFormData.semester,
+      p_project_type: projectFormData.project_type,
+      p_author: projectFormData.author || null,
+      p_tech_stack: projectFormData.tech_stack ? projectFormData.tech_stack.split(",").map(s => s.trim()) : null,
+      p_github_url: projectFormData.github_url || null,
+      p_demo_url: projectFormData.demo_url || null,
     });
     if (error) {
       toast({ title: "Error creating project", description: error.message, variant: "destructive" });
@@ -359,17 +598,18 @@ export default function Admin() {
 
   const handleEditProject = async () => {
     if (!editingProject) return;
-    const { error } = await supabase.from("projects").update({
-      title: projectFormData.title,
-      description: projectFormData.description,
-      department: projectFormData.department,
-      semester: projectFormData.semester,
-      project_type: projectFormData.project_type,
-      author: projectFormData.author || null,
-      tech_stack: projectFormData.tech_stack ? projectFormData.tech_stack.split(",").map(s => s.trim()) : null,
-      github_url: projectFormData.github_url || null,
-      demo_url: projectFormData.demo_url || null,
-    }).eq("id", editingProject.id);
+    const { error } = await supabase.rpc("admin_update_project", {
+      p_id: editingProject.id,
+      p_title: projectFormData.title,
+      p_description: projectFormData.description,
+      p_department: projectFormData.department,
+      p_semester: projectFormData.semester,
+      p_project_type: projectFormData.project_type,
+      p_author: projectFormData.author || null,
+      p_tech_stack: projectFormData.tech_stack ? projectFormData.tech_stack.split(",").map(s => s.trim()) : null,
+      p_github_url: projectFormData.github_url || null,
+      p_demo_url: projectFormData.demo_url || null,
+    });
     if (error) {
       toast({ title: "Error updating project", description: error.message, variant: "destructive" });
     } else {
@@ -381,7 +621,7 @@ export default function Admin() {
   };
 
   const handleDeleteProject = async (id: string) => {
-    const { error } = await supabase.from("projects").delete().eq("id", id);
+    const { error } = await supabase.rpc("admin_delete_project", { p_id: id });
     if (error) {
       toast({ title: "Error deleting project", description: error.message, variant: "destructive" });
     } else {
@@ -509,6 +749,20 @@ export default function Admin() {
           >
             <Rocket className="h-4 w-4" />
             Manage Projects
+          </button>
+
+          <p className="px-3 py-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider mt-4">Payments</p>
+          <button
+            onClick={() => { setActiveSection("payments"); setSelectedFolder(null); }}
+            className={cn(
+              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors",
+              activeSection === "payments"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+            )}
+          >
+            <CreditCard className="h-4 w-4" />
+            Verify Payments
           </button>
 
           <p className="px-3 py-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider mt-4">System</p>
@@ -920,6 +1174,189 @@ export default function Admin() {
             </>
           )}
 
+          {/* Verify Payments View */}
+          {activeSection === "payments" && (
+            <>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h1 className="text-2xl font-bold flex items-center gap-2">
+                    <CreditCard className="h-6 w-6 text-primary" />
+                    Verify Payments
+                  </h1>
+                  <p className="text-sm text-muted-foreground">
+                    {purchases.length} payment{purchases.length !== 1 ? "s" : ""} {purchaseFilter !== "all" ? `(${purchaseFilter})` : ""}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {(["pending", "approved", "rejected", "all"] as const).map((filter) => (
+                    <Button
+                      key={filter}
+                      size="sm"
+                      variant={purchaseFilter === filter ? "default" : "outline"}
+                      onClick={() => setPurchaseFilter(filter)}
+                      className="capitalize"
+                    >
+                      {filter === "pending" && <Clock className="h-3.5 w-3.5 mr-1" />}
+                      {filter === "approved" && <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+                      {filter === "rejected" && <XCircle className="h-3.5 w-3.5 mr-1" />}
+                      {filter}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {purchases.length === 0 ? (
+                <Card className="border-dashed border-2 border-border">
+                  <CardContent className="py-12 text-center">
+                    <CreditCard className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                    <p className="text-muted-foreground">No {purchaseFilter !== "all" ? purchaseFilter : ""} payments found.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-4">
+                  {purchases.map((purchase) => (
+                    <Card key={purchase.id} className="border-border/50 overflow-hidden">
+                      <CardContent className="p-5">
+                        <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                          {/* Payment screenshot thumbnail */}
+                          {purchase.payment_screenshot_url && (
+                            <div
+                              className="w-24 h-24 lg:w-28 lg:h-28 rounded-lg border overflow-hidden cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
+                              onClick={() => setScreenshotModal(purchase.payment_screenshot_url)}
+                            >
+                              <img
+                                src={purchase.payment_screenshot_url}
+                                alt="Payment proof"
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          )}
+
+                          {/* Details */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <div>
+                                <h3 className="font-semibold text-foreground">{purchase.folder_name}</h3>
+                                <p className="text-xs text-muted-foreground">
+                                  {purchase.folder_subject} • {purchase.folder_department} - {purchase.folder_semester}
+                                </p>
+                              </div>
+                              <Badge className={cn(
+                                "flex-shrink-0",
+                                purchase.status === "pending" && "bg-amber-100 text-amber-700 border-amber-200",
+                                purchase.status === "approved" && "bg-emerald-100 text-emerald-700 border-emerald-200",
+                                purchase.status === "rejected" && "bg-red-100 text-red-700 border-red-200"
+                              )}>
+                                {purchase.status === "pending" && <Clock className="h-3 w-3 mr-1" />}
+                                {purchase.status === "approved" && <CheckCircle2 className="h-3 w-3 mr-1" />}
+                                {purchase.status === "rejected" && <XCircle className="h-3 w-3 mr-1" />}
+                                {purchase.status}
+                              </Badge>
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-3">
+                              <div>
+                                <p className="text-xs text-muted-foreground">Student</p>
+                                <p className="font-medium truncate">{purchase.user_name || purchase.user_email || "Unknown"}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Buyer Name</p>
+                                <p className="font-medium">{purchase.buyer_name}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Phone</p>
+                                <p className="font-medium flex items-center gap-1">
+                                  <Phone className="h-3 w-3" />{purchase.phone_number}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Account Holder</p>
+                                <p className="font-medium">{purchase.account_holder_name}</p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+                              <IndianRupee className="h-3 w-3" />
+                              <span className="font-semibold text-foreground">₹{purchase.amount}</span>
+                              <span>•</span>
+                              <span>{purchase.created_at ? new Date(purchase.created_at).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}</span>
+                            </div>
+
+                            {purchase.rejection_reason && purchase.status === "rejected" && (
+                              <p className="text-sm text-red-600 mb-3">Rejection reason: {purchase.rejection_reason}</p>
+                            )}
+
+                            {/* Actions */}
+                            {purchase.status === "pending" && (
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  className="bg-emerald-600 hover:bg-emerald-700"
+                                  onClick={() => handleApprovePurchase(purchase.id)}
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                                  Approve
+                                </Button>
+                                {rejectingPurchaseId === purchase.id ? (
+                                  <div className="flex gap-2 items-center">
+                                    <Input
+                                      placeholder="Reason (optional)"
+                                      value={rejectionReason}
+                                      onChange={(e) => setRejectionReason(e.target.value)}
+                                      className="h-8 w-48 text-sm"
+                                    />
+                                    <Button size="sm" variant="destructive" onClick={() => handleRejectPurchase(purchase.id)}>
+                                      Confirm Reject
+                                    </Button>
+                                    <Button size="sm" variant="ghost" onClick={() => { setRejectingPurchaseId(null); setRejectionReason(""); }}>
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-red-200 text-red-600 hover:bg-red-50"
+                                    onClick={() => setRejectingPurchaseId(purchase.id)}
+                                  >
+                                    <XCircle className="h-3.5 w-3.5 mr-1" />
+                                    Reject
+                                  </Button>
+                                )}
+                                {purchase.payment_screenshot_url && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setScreenshotModal(purchase.payment_screenshot_url)}
+                                  >
+                                    <Eye className="h-3.5 w-3.5 mr-1" />
+                                    View Full SS
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {/* Screenshot modal */}
+              <Dialog open={!!screenshotModal} onOpenChange={() => setScreenshotModal(null)}>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Payment Screenshot</DialogTitle>
+                  </DialogHeader>
+                  {screenshotModal && (
+                    <img src={screenshotModal} alt="Payment screenshot" className="w-full rounded-lg" />
+                  )}
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
+
           {/* Settings View */}
           {activeSection === "settings" && (
             <>
@@ -1078,15 +1515,47 @@ export default function Admin() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-sm">File Upload</Label>
-              <div className="border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary/50 transition-colors cursor-pointer">
-                <Upload className="h-6 w-6 mx-auto mb-1.5 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Click to upload PDF, DOC (max 10MB)</p>
-              </div>
+              <label className="border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary/50 transition-colors cursor-pointer block">
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (file.size > 10 * 1024 * 1024) {
+                        toast({ title: "File too large", description: "Maximum file size is 10MB", variant: "destructive" });
+                        return;
+                      }
+                      setSelectedFile(file);
+                    }
+                  }}
+                />
+                {selectedFile ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <FileText className="h-5 w-5 text-primary" />
+                    <span className="text-sm text-foreground font-medium">{selectedFile.name}</span>
+                    <span className="text-xs text-muted-foreground">({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)</span>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="h-6 w-6 mx-auto mb-1.5 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">Click to upload PDF, DOC (max 10MB)</p>
+                  </>
+                )}
+              </label>
+              {selectedFile && (
+                <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => setSelectedFile(null)}>
+                  Remove file
+                </Button>
+              )}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setIsNoteDialogOpen(false)}>Cancel</Button>
-            <Button size="sm" onClick={editingNote ? handleEditNote : handleAddNote}>{editingNote ? "Save" : "Add Note"}</Button>
+            <Button size="sm" onClick={editingNote ? handleEditNote : handleAddNote} disabled={uploading}>
+              {uploading ? "Uploading..." : editingNote ? "Save" : "Add Note"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { departments, semesters, subjectsByDeptSem } from "@/data/mockData";
+import { supabase } from "@/integrations/supabase/client";
 import { Search, BookOpen, Sparkles } from "lucide-react";
 
 export default function NotesSelection() {
@@ -19,6 +20,7 @@ export default function NotesSelection() {
   const [selectedDept, setSelectedDept] = useState<string>("");
   const [selectedSem, setSelectedSem] = useState<string>("");
   const [selectedSubject, setSelectedSubject] = useState<string>("");
+  const [customSubjects, setCustomSubjects] = useState<string[]>([]);
 
   // Auto-fill department from URL params
   useEffect(() => {
@@ -28,15 +30,37 @@ export default function NotesSelection() {
     }
   }, [searchParams]);
 
-  // Get available subjects based on selection
-  const availableSubjects = selectedDept && selectedSem
+  // Get hardcoded subjects
+  const hardcodedSubjects = selectedDept && selectedSem
     ? subjectsByDeptSem[selectedDept]?.[selectedSem] || []
     : [];
 
-  // Reset subject when dept or sem changes
+  // Fetch custom subjects from DB when dept/sem changes
   useEffect(() => {
     setSelectedSubject("");
+    setCustomSubjects([]);
+    if (!selectedDept || !selectedSem) return;
+
+    const controller = new AbortController();
+    const fetchCustomSubjects = async () => {
+      const { data } = await supabase
+        .from("custom_subjects")
+        .select("name")
+        .eq("department", selectedDept)
+        .eq("semester", selectedSem)
+        .eq("is_active", true)
+        .abortSignal(controller.signal);
+      if (data) {
+        setCustomSubjects(data.map((s) => s.name));
+      }
+    };
+    fetchCustomSubjects();
+
+    return () => controller.abort();
   }, [selectedDept, selectedSem]);
+
+  // Merge hardcoded + custom subjects (deduplicated)
+  const availableSubjects = [...new Set([...hardcodedSubjects, ...customSubjects])];
 
   const handleFindNotes = () => {
     const params = new URLSearchParams();

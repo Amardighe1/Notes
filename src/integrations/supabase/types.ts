@@ -453,6 +453,75 @@ export type Database = {
         }
         Relationships: []
       }
+      purchases: {
+        Row: {
+          id: string
+          user_id: string
+          folder_id: string
+          status: string
+          amount: number
+          buyer_name: string
+          phone_number: string
+          account_holder_name: string
+          payment_screenshot_url: string | null
+          payment_screenshot_path: string | null
+          reviewed_by: string | null
+          reviewed_at: string | null
+          rejection_reason: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          folder_id: string
+          status?: string
+          amount?: number
+          buyer_name: string
+          phone_number: string
+          account_holder_name: string
+          payment_screenshot_url?: string | null
+          payment_screenshot_path?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          rejection_reason?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          folder_id?: string
+          status?: string
+          amount?: number
+          buyer_name?: string
+          phone_number?: string
+          account_holder_name?: string
+          payment_screenshot_url?: string | null
+          payment_screenshot_path?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          rejection_reason?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchases_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchases_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null

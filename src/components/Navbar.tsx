@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { GraduationCap, ChevronDown, Menu, X } from "lucide-react";
+import { GraduationCap, ChevronDown, Menu, X, LogOut, User, Shield, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const departments = [
   { name: "AIML", label: "AI & Machine Learning" },
@@ -30,9 +32,15 @@ const navLinks = [
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const { user, profile, role, signOut } = useAuth();
 
   const handleDepartmentClick = (dept: string) => {
     navigate(`/notes-selection?department=${dept}`);
+  };
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/");
   };
 
   return (
@@ -104,11 +112,58 @@ export function Navbar() {
           </DropdownMenu>
         </div>
 
-        {/* Login Button */}
-        <div className="hidden md:flex items-center gap-4">
-          <Button variant="default" className="rounded-full px-6">
-            Login
-          </Button>
+        {/* Auth Buttons */}
+        <div className="hidden md:flex items-center gap-3">
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    {role === "admin" ? <Shield className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                  </div>
+                  <span className="max-w-[120px] truncate">
+                    {profile?.full_name || profile?.email || "User"}
+                  </span>
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-popover border border-border shadow-elevated">
+                <div className="px-3 py-2">
+                  <p className="text-sm font-medium">{profile?.full_name || "User"}</p>
+                  <p className="text-xs text-muted-foreground">{profile?.email}</p>
+                  <p className="text-xs text-primary capitalize mt-0.5">{role}</p>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => navigate("/my-purchases")}
+                  className="cursor-pointer py-2.5 focus:bg-muted"
+                >
+                  <ShoppingBag className="h-4 w-4 mr-2" />
+                  My Purchases
+                </DropdownMenuItem>
+                {role === "admin" && (
+                  <DropdownMenuItem
+                    onClick={() => navigate("/admin")}
+                    className="cursor-pointer py-2.5 focus:bg-muted"
+                  >
+                    <Shield className="h-4 w-4 mr-2" />
+                    Admin Dashboard
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="cursor-pointer py-2.5 focus:bg-muted text-destructive focus:text-destructive"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button variant="default" className="rounded-full px-6" onClick={() => navigate("/login")}>
+              Login
+            </Button>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -172,9 +227,50 @@ export function Navbar() {
           </div>
 
           <div className="px-4 pt-4 border-t border-border">
-            <Button variant="default" className="w-full rounded-full">
-              Login
-            </Button>
+            {user ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 px-2 py-1">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    {role === "admin" ? <Shield className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{profile?.full_name || "User"}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{role}</p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full rounded-full"
+                  onClick={() => { navigate("/my-purchases"); setMobileMenuOpen(false); }}
+                >
+                  My Purchases
+                </Button>
+                {role === "admin" && (
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-full"
+                    onClick={() => { navigate("/admin"); setMobileMenuOpen(false); }}
+                  >
+                    Admin Dashboard
+                  </Button>
+                )}
+                <Button
+                  variant="destructive"
+                  className="w-full rounded-full"
+                  onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
+                >
+                  Sign Out
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="default"
+                className="w-full rounded-full"
+                onClick={() => { navigate("/login"); setMobileMenuOpen(false); }}
+              >
+                Login
+              </Button>
+            )}
           </div>
         </div>
       </div>
